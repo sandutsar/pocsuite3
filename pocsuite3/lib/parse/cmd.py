@@ -75,7 +75,7 @@ def cmd_line_parser(argv=None):
         group.add_argument("--censys-secret", dest="censys_secret", help="Censys secret")
         # Modules options
         modules = parser.add_argument_group("Modules", "Modules(Seebug、Zoomeye、CEye、Fofa、Quake Listener) options")
-        modules.add_argument("--dork", dest="dork", action="store", default=None,
+        modules.add_argument("--dork", dest="dork", action="store", default="", nargs="?",
                              help="Zoomeye dork used for search.")
         modules.add_argument("--dork-zoomeye", dest="dork_zoomeye", action="store", default=None,
                              help="Zoomeye dork used for search.")
@@ -140,7 +140,7 @@ def cmd_line_parser(argv=None):
 
         args = parser.parse_args()
         if not any((args.url, args.url_file, args.update_all, args.plugins, args.dork, args.dork_shodan, args.dork_fofa, args.dork_quake,
-                    args.dork_censys, args.dork_zoomeye, args.configFile, args.show_version)) and not args.rule and not args.rule_req:
+                    args.dork_censys, args.dork_zoomeye, args.configFile, args.show_version, args.rule, args.rule_req)) and args.dork is not None:
             err_msg = "missing a mandatory option (-u, --url-file, --update). "
             err_msg += "Use -h for basic and -hh for advanced help\n"
             parser.error(err_msg)

@@ -22,17 +22,20 @@ class TargetFromZoomeye(PluginBase):
 
     def init(self):
         self.init_zoomeye_api()
-        dork = None
         if conf.dork_zoomeye:
             dork = conf.dork_zoomeye
         else:
             dork = conf.dork
-        if not dork:
+        if dork and dork is not None:
             msg = "Need to set up dork (please --dork or --dork-zoomeye)"
             raise PocsuitePluginDorkException(msg)
+        elif dork is None:
+            for poc_module in kb.registered_pocs:
+                if hasattr(kb.registered_pocs[poc_module], 'dork'):
+                    dork = kb.registered_pocs[poc_module].dork["zoomeye"]
         if conf.dork_b64:
             import base64
-            dork = str(base64.b64decode(dork),encoding = "utf-8")
+            dork = str(base64.b64decode(dork), encoding="utf-8")
 
         info_msg = "[PLUGIN] try fetch targets from zoomeye with dork: {0}".format(dork)
         logger.info(info_msg)

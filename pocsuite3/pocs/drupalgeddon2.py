@@ -21,6 +21,7 @@ class DemoPOC(POCBase):
     appName = 'Drupal'
     appVersion = ''
     vulType = VUL_TYPE.CODE_EXECUTION
+    dork = {'zoomeye': 'app:"Drupal"'}
     desc = '''
     '''
     samples = []

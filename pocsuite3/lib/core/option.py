@@ -223,7 +223,7 @@ def _set_multiple_targets():
         for line in get_file_items(conf.url_file, lowercase=False, unique=True):
             kb.targets.add(line)
 
-    if conf.dork:
+    if conf.dork or conf.dork is None:
         # enable plugin 'target_from_zoomeye' by default
         if 'target_from_shodan' not in conf.plugins and 'target_from_fofa' not in conf.plugins and 'target_from_quake' not in conf.plugins:
             conf.plugins.append('target_from_zoomeye')
@@ -643,10 +643,13 @@ def init_options(input_options=AttribDict(), override_options=False):
                 paths.USER_POCS_PATH = conf.pocs_path
                 for root, dirs, files in os.walk(paths.USER_POCS_PATH):
                     files = list(filter(lambda x: not x.startswith("__") and x.endswith(".py"), files))
-                regex_rule(list(paths.USER_POCS_PATH + i for i in files))
-
-        if conf.poc:
+                regex_rule(list(os.path.join(paths.USER_POCS_PATH , i) for i in files))
+        elif conf.poc:
             regex_rule(conf.poc)
+        else:
+            for root, dirs, files in os.walk(paths.POCSUITE_POCS_PATH):
+                files = list(filter(lambda x: not x.startswith("__") and x.endswith(".py"), files))
+            regex_rule(list(os.path.join(paths.POCSUITE_POCS_PATH , i) for i in files))
         exit()
     # if check version
     if conf.show_version:
