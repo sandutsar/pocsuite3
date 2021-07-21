@@ -26,7 +26,7 @@ class TargetFromZoomeye(PluginBase):
             dork = conf.dork_zoomeye
         else:
             dork = conf.dork
-        if dork and dork is not None:
+        if not dork and dork is not None:
             msg = "Need to set up dork (please --dork or --dork-zoomeye)"
             raise PocsuitePluginDorkException(msg)
         elif dork is None:
