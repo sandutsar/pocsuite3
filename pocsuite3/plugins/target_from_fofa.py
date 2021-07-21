@@ -22,7 +22,7 @@ class TargetFromFofa(PluginBase):
         else:
             dork = conf.dork
         if not dork and dork is not None:
-            msg = "Need to set up dork (please --dork or --dork-zoomeye)"
+            msg = "Need to set up dork (please --dork or --dork-fofa)"
             raise PocsuitePluginDorkException(msg)
         elif dork is None:
             for poc_module in kb.registered_pocs:
