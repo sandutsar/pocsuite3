@@ -223,7 +223,7 @@ def _set_multiple_targets():
         for line in get_file_items(conf.url_file, lowercase=False, unique=True):
             kb.targets.add(line)
 
-    if conf.dork or conf.dork is None:
+    if conf.dork:
         # enable plugin 'target_from_zoomeye' by default
         if 'target_from_shodan' not in conf.plugins and 'target_from_fofa' not in conf.plugins and 'target_from_quake' not in conf.plugins:
             conf.plugins.append('target_from_zoomeye')
@@ -371,6 +371,18 @@ def _set_pocs_modules():
         logger.info(info_msg)
 
         conf.plugins.append('poc_from_seebug')
+
+def _set_dork_from_poc():
+    if conf.dork is None:
+        conf.dork = {}
+        for poc_module in kb.registered_pocs:
+            if hasattr(kb.registered_pocs[poc_module], 'dork'):
+                conf.dork[poc_module] = []
+                for plugin in ["zoomeye", "fofa", "shodan", "quake"]:
+                    if kb.registered_pocs[poc_module].dork.get(plugin):
+                        # conf.dork = kb.registered_pocs[poc_module].dork.get(plugin)
+                        conf.dork[poc_module].append(kb.registered_pocs[poc_module].dork.get(plugin))
+                        conf.plugins.append(f'target_from_{plugin}')
 
 
 def _set_plugins():
@@ -657,8 +669,25 @@ def init_options(input_options=AttribDict(), override_options=False):
 
 
 def _init_targets_plugins():
+    temp_targets = copy.deepcopy(kb.targets)
+    kb.targets.clear()
     for _, plugin in kb.plugins.targets.items():
-        plugin.init()
+        if isinstance(conf.dork,dict):
+            dorks = conf.dork
+            for poc_module in dorks:
+                for dork in dorks[poc_module]:
+                    conf.dork = dork
+                    plugin.init()
+                    for i in range(len(kb.targets)):
+                        kb.task_queue.put((kb.targets.pop(), poc_module))
+
+        else:
+            plugin.init()
+    if not len(kb.targets):
+        kb.targets = copy.deepcopy(temp_targets)
+    else:
+        for i in range(len(temp_targets)):
+            kb.targets.add(temp_targets.pop())
 
 
 def _init_pocs_plugins():
@@ -692,6 +721,7 @@ def init():
     _set_multiple_targets()
     _set_user_pocs_path()
     _set_pocs_modules()  # poc module模块要在插件模块前，poc选项中某些参数调用了插件
+    _set_dork_from_poc()
     _set_plugins()
     _init_targets_plugins()
     _init_pocs_plugins()

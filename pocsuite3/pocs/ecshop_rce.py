@@ -29,6 +29,7 @@ class DemoPOC(POCBase):
     appName = 'ECSHOP'
     appVersion = '2.x,3.x'
     vulType = VUL_TYPE.CODE_EXECUTION
+    dork = {'zoomeye': 'app:"ECShop"'}
     desc = '''近日，Ecshop爆出全版本SQL注入及任意代码执行漏洞，受影响的版本有：Ecshop 2.x,Ecshop 3.x-3.6.0'''
     samples = []
     install_requires = ['']

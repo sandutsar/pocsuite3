@@ -21,13 +21,10 @@ class TargetFromQuake(PluginBase):
             dork = conf.dork_quake
         else:
             dork = conf.dork
-        if not dork and dork is not None:
+        if not dork:
             msg = "Need to set up dork (please --dork or --dork-quake)"
             raise PocsuitePluginDorkException(msg)
-        elif dork is None:
-            for poc_module in kb.registered_pocs:
-                if hasattr(kb.registered_pocs[poc_module], 'dork'):
-                    dork = kb.registered_pocs[poc_module].dork["quake"]
+
         if conf.dork_b64:
             import base64
             dork = str(base64.b64decode(dork), encoding="utf-8")
