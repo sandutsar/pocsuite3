@@ -25,7 +25,7 @@ class TargetFromShodan(PluginBase):
         else:
             dork = conf.dork
         if not dork:
-            msg = "Need to set up dork (please --dork or --dork-quake)"
+            msg = "Need to set up dork (please --dork or --dork-shodan)"
             raise PocsuitePluginDorkException(msg)
         if conf.dork_b64:
             import base64

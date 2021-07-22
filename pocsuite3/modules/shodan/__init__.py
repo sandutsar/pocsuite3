@@ -1,3 +1,4 @@
+import time
 import urllib
 
 from configparser import ConfigParser
@@ -11,6 +12,7 @@ class Shodan():
         self.headers = None
         self.credits = 0
         self.conf_path = conf_path
+        self.token = None
 
         if self.conf_path:
             self.parser = ConfigParser()
