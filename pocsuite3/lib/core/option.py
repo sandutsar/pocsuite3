@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import socket
+import socks
 from queue import Queue
 from urllib.parse import urlsplit
 
@@ -13,6 +14,7 @@ from pocsuite3.lib.core.common import boldify_message, check_file, get_file_item
 from pocsuite3.lib.core.common import check_path, extract_cookies
 from pocsuite3.lib.core.common import get_local_ip, desensitization
 from pocsuite3.lib.core.common import single_time_warn_message
+from pocsuite3.lib.core.common import OrderedSet
 from pocsuite3.lib.core.convert import stdout_encode
 from pocsuite3.lib.core.data import conf, cmd_line_options
 from pocsuite3.lib.core.data import kb
@@ -32,8 +34,6 @@ from pocsuite3.lib.parse.configfile import config_file_parser
 from pocsuite3.lib.parse.rules import regex_rule
 from pocsuite3.lib.request.patch import patch_all
 from pocsuite3.modules.listener import start_listener
-from pocsuite3.thirdparty.oset.orderedset import OrderedSet
-from pocsuite3.thirdparty.pysocks import socks
 
 
 def _resolve_cross_references():
@@ -530,7 +530,7 @@ def _set_conf_attributes():
     conf.retry = 0
     conf.delay = 0
     conf.http_headers = {}
-    conf.agents = [DEFAULT_USER_AGENT]  # 数据源从插件加载的时候无默认值需要处理
+    conf.agents = [DEFAULT_USER_AGENT]  # When loading from the plug-in, if the data source has no default value, it needs to be processed
     conf.login_user = None
     conf.login_pass = None
     conf.shodan_token = None
@@ -728,7 +728,7 @@ def init():
     update()
     _set_multiple_targets()
     _set_user_pocs_path()
-    _set_pocs_modules()  # poc module模块要在插件模块前，poc选项中某些参数调用了插件
+    _set_pocs_modules()  # The poc module module must be in front of the plug-in module, and some parameters in the poc option call the plug-in
     _set_dork_from_poc()
     _set_plugins()
     _init_targets_plugins()
