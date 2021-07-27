@@ -7,6 +7,9 @@ from pocsuite3.lib.core.settings import IS_WIN, CMD_PARSE_WHITELIST
 
 DIY_OPTIONS = []
 
+def check_dork_none(args):
+    return args.dork != None and args.dork_zoomeye != None and args.dork_shodan != None \
+           and args.dork_fofa != None and args.dork_quake != None
 
 def cmd_line_parser(argv=None):
     """
@@ -77,15 +80,15 @@ def cmd_line_parser(argv=None):
         modules = parser.add_argument_group("Modules", "Modules(Seebug、Zoomeye、CEye、Fofa、Quake Listener) options")
         modules.add_argument("--dork", dest="dork", action="store", default="", nargs="?",
                              help="Zoomeye dork used for search.")
-        modules.add_argument("--dork-zoomeye", dest="dork_zoomeye", action="store", default=None,
+        modules.add_argument("--dork-zoomeye", dest="dork_zoomeye", action="store", default="", nargs="?",
                              help="Zoomeye dork used for search.")
-        modules.add_argument("--dork-shodan", dest="dork_shodan", action="store", default=None,
+        modules.add_argument("--dork-shodan", dest="dork_shodan", action="store", default="", nargs="?",
                              help="Shodan dork used for search.")
         modules.add_argument("--dork-censys", dest="dork_censys", action="store", default=None,
                              help="Censys dork used for search.")
-        modules.add_argument("--dork-fofa", dest="dork_fofa", action="store", default=None,
+        modules.add_argument("--dork-fofa", dest="dork_fofa", action="store", default="", nargs="?",
                              help="Fofa dork used for search.")
-        modules.add_argument("--dork-quake", dest="dork_quake", action="store", default=None,
+        modules.add_argument("--dork-quake", dest="dork_quake", action="store", default="", nargs="?",
                              help="Quake dork used for search.")
         modules.add_argument("--max-page", dest="max_page", type=int, default=1,
                              help="Max page used in ZoomEye API(10 targets/Page).")
@@ -140,7 +143,7 @@ def cmd_line_parser(argv=None):
 
         args = parser.parse_args()
         if not any((args.url, args.url_file, args.update_all, args.plugins, args.dork, args.dork_shodan, args.dork_fofa, args.dork_quake,
-                    args.dork_censys, args.dork_zoomeye, args.configFile, args.show_version, args.rule, args.rule_req)) and args.dork is not None:
+                    args.dork_censys, args.dork_zoomeye, args.configFile, args.show_version, args.rule, args.rule_req)) and check_dork_none(args):
             err_msg = "missing a mandatory option (-u, --url-file, --update). "
             err_msg += "Use -h for basic and -hh for advanced help\n"
             parser.error(err_msg)

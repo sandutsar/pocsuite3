@@ -227,9 +227,13 @@ def _set_multiple_targets():
         # enable plugin 'target_from_zoomeye' by default
         if 'target_from_shodan' not in conf.plugins and 'target_from_fofa' not in conf.plugins and 'target_from_quake' not in conf.plugins:
             conf.plugins.append('target_from_zoomeye')
+    elif conf.dork is None:
+        conf.dork_zoomeye = None
 
     if conf.dork_zoomeye:
         conf.plugins.append('target_from_zoomeye')
+    elif conf.dork_zoomeye is None:
+        conf.dork = None
 
     if conf.dork_shodan:
         conf.plugins.append('target_from_shodan')
@@ -372,15 +376,18 @@ def _set_pocs_modules():
 
         conf.plugins.append('poc_from_seebug')
 
+def check_dork():
+    return conf.dork is None or conf.dork_zoomeye is None or conf.dork_fofa is None \
+           or conf.dork_shodan is None or conf.dork_quake is None
+
 def _set_dork_from_poc():
-    if conf.dork is None:
+    if check_dork():
         conf.dork = {}
         for poc_module in kb.registered_pocs:
             if hasattr(kb.registered_pocs[poc_module], 'dork'):
                 conf.dork[poc_module] = {}
                 for plugin in ["zoomeye", "fofa", "shodan", "quake"]:
-                    if kb.registered_pocs[poc_module].dork.get(plugin):
-                        # conf.dork = kb.registered_pocs[poc_module].dork.get(plugin)
+                    if kb.registered_pocs[poc_module].dork.get(plugin) and conf.get("dork_"+plugin) is None:
                         conf.dork[poc_module][plugin] = kb.registered_pocs[poc_module].dork.get(plugin)
                         conf.plugins.append(f'target_from_{plugin}')
 
@@ -672,17 +679,16 @@ def _init_targets_plugins():
     temp_targets = copy.deepcopy(kb.targets)
     temp_dork = copy.deepcopy(conf.dork)
     kb.targets.clear()
-    for _, plugin in kb.plugins.targets.items():
-        if isinstance(temp_dork,dict):
+    for plugin_name, plugin in kb.plugins.targets.items():
+        if isinstance(temp_dork,dict) and temp_dork:
             dorks = temp_dork
             for poc_module in dorks:
                 for dork in dorks[poc_module]:
-                    if dork in _:
+                    if dork in plugin_name:
                         conf.dork = dorks[poc_module][dork]
                         plugin.init()
                         for i in range(len(kb.targets)):
                             kb.task_queue.put((kb.targets.pop(), poc_module))
-
         else:
             plugin.init()
     if not len(kb.targets):

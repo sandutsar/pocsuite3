@@ -99,7 +99,8 @@ def task_run():
             # start capture flow
             import urllib
             from pocsuite3.thirdparty.scapy.scapy_test import Sniffer
-            from pocsuite3.thirdparty.scapy.utils import wrpcap
+            # from pocsuite3.thirdparty.scapy.utils import wrpcap
+            from scapy.utils import wrpcap
             sniffer = Sniffer(urllib.parse.urlparse(target).hostname)
             if sniffer.use_pcap:
                 if not sniffer.is_admin:
