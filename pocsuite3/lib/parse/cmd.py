@@ -9,7 +9,7 @@ DIY_OPTIONS = []
 
 def check_dork_none(args):
     return args.dork != None and args.dork_zoomeye != None and args.dork_shodan != None \
-           and args.dork_fofa != None and args.dork_quake != None
+           and args.dork_fofa != None and args.dork_quake != None and args.dork_censys != None
 
 def cmd_line_parser(argv=None):
     """
@@ -84,7 +84,7 @@ def cmd_line_parser(argv=None):
                              help="Zoomeye dork used for search.")
         modules.add_argument("--dork-shodan", dest="dork_shodan", action="store", default="", nargs="?",
                              help="Shodan dork used for search.")
-        modules.add_argument("--dork-censys", dest="dork_censys", action="store", default=None,
+        modules.add_argument("--dork-censys", dest="dork_censys", action="store", default="", nargs="?",
                              help="Censys dork used for search.")
         modules.add_argument("--dork-fofa", dest="dork_fofa", action="store", default="", nargs="?",
                              help="Fofa dork used for search.")

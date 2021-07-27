@@ -225,6 +225,7 @@ def _set_multiple_targets():
 
     if conf.dork:
         # enable plugin 'target_from_zoomeye' by default
+        conf.dork_zoomeye = conf.dork
         if 'target_from_shodan' not in conf.plugins and 'target_from_fofa' not in conf.plugins and 'target_from_quake' not in conf.plugins:
             conf.plugins.append('target_from_zoomeye')
     elif conf.dork is None:
@@ -382,15 +383,17 @@ def check_dork():
 
 def _set_dork_from_poc():
     if check_dork():
-        conf.dork = {}
+        dork = {}
         for poc_module in kb.registered_pocs:
             if hasattr(kb.registered_pocs[poc_module], 'dork'):
-                conf.dork[poc_module] = {}
-                for plugin in ["zoomeye", "fofa", "shodan", "quake"]:
+                dork[poc_module] = {}
+                for plugin in ["zoomeye", "fofa", "shodan", "quake", "censys"]:
                     if kb.registered_pocs[poc_module].dork.get(plugin) and conf.get("dork_"+plugin) is None:
-                        conf.dork[poc_module][plugin] = kb.registered_pocs[poc_module].dork.get(plugin)
+                        dork[poc_module][plugin] = kb.registered_pocs[poc_module].dork.get(plugin)
                         conf.plugins.append(f'target_from_{plugin}')
-
+                    elif conf.get("dork_"+plugin):
+                        dork[poc_module][plugin] = conf.get("dork_"+plugin)
+        conf.dork = dork
 
 def _set_plugins():
     # TODO
@@ -687,17 +690,15 @@ def _init_targets_plugins():
                     if dork in plugin_name:
                         conf.dork = dorks[poc_module][dork]
                         plugin.init()
-                        for i in kb.targets:
-                            kb.task_queue.put((i, poc_module))
+                        for target in kb.targets:
+                            kb.task_queue.put((target, poc_module))
                         kb.targets.clear()
         else:
             plugin.init()
-    if not len(kb.targets):
-        kb.targets = copy.deepcopy(temp_targets)
-    else:
-        for i in temp_targets:
-            kb.targets.add(i)
-        temp_targets.clear()
+    # if user use -u arg or --dork xxxx, we need to restore conf.targets variable
+    for i in temp_targets:
+        kb.targets.add(i)
+    temp_targets.clear()
 
 
 def _init_pocs_plugins():
