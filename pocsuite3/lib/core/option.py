@@ -687,15 +687,17 @@ def _init_targets_plugins():
                     if dork in plugin_name:
                         conf.dork = dorks[poc_module][dork]
                         plugin.init()
-                        for i in range(len(kb.targets)):
-                            kb.task_queue.put((kb.targets.pop(), poc_module))
+                        for i in kb.targets:
+                            kb.task_queue.put((i, poc_module))
+                        kb.targets.clear()
         else:
             plugin.init()
     if not len(kb.targets):
         kb.targets = copy.deepcopy(temp_targets)
     else:
-        for i in range(len(temp_targets)):
-            kb.targets.add(temp_targets.pop())
+        for i in temp_targets:
+            kb.targets.add(i)
+        temp_targets.clear()
 
 
 def _init_pocs_plugins():
