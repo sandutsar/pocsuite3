@@ -1,3 +1,5 @@
+# This document has stopped maintenance, please move to https://pocsuite.org
+
 Pocsuite3 开发文档及 PoC 编写规范及要求说明
 ---
 * [概述](#overview)
@@ -136,7 +138,7 @@ from pocsuite3.api import get_listener_ip, get_listener_port
 from pocsuite3.api import REVERSE_PAYLOAD
 from pocsuite3.lib.utils import random_str
 
-  class DemoPOC(POCBase):
+class DemoPOC(POCBase):
     ...
 ```
 
@@ -157,7 +159,7 @@ from pocsuite3.lib.utils import random_str
     desc = '/api/v2.0/user/remoteserver.saml接口的name参数存在命令注入'  # 漏洞简要描述
     samples = ['http://192.168.1.1']  # 测试样列，就是用 PoC 测试成功的目标
     install_requires = ['BeautifulSoup4:bs4']  # PoC 第三方模块依赖，请尽量不要使用第三方模块，必要时请参考《PoC第三方模块依赖说明》填写
-   	pocDesc = ''' poc的用法描述 '''
+    pocDesc = ''' poc的用法描述 '''
     dork = {'zoomeye': 'deviceState.admin.hostname'}  # 搜索 dork，如果运行 PoC 时不提供目标且该字段不为空，将会调用插件从搜索引擎获取目标。
     suricata_request = '''http.uri; content: "/api/v2.0/user/remoteserver.saml";'''  # 请求流量 suricata 规则
     suricata_response = ''  # 响应流量 suricata 规则
@@ -395,7 +397,7 @@ from pocsuite3.api import OptString, OptDict, OptIP, OptPort, OptBool, OptIntege
 
 #### Pocsuite3 远程调用文件列表<div id="inclue_files"></div>
 部分 PoC 需要采用包含远程文件的形式，要求基于 Pocsuite3 的 PoC 统一调用统一文件(如需引用未在以下文件列表内文件，请联系 404-team@knownsec.com 或者直接提交 issue)。
-统一 URL 调用路径：`http://pocsuite.org/include_files/`，如 `http://pocsuite.org/include_files/xxe_verify.xml`
+统一 URL 调用路径：`https://pocsuite.org/include_files/`，如 `https://pocsuite.org/include_files/xxe_verify.xml`
 
 **文件列表**
 
@@ -561,7 +563,7 @@ HttpServer Demo:
 """
 If you have issues about development, please read:
 https://github.com/knownsec/pocsuite3/blob/master/docs/CODING.md
-for more about information, plz visit http://pocsuite.org
+for more about information, plz visit https://pocsuite.org
 """
 from http.server import SimpleHTTPRequestHandler
 

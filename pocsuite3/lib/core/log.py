@@ -9,6 +9,13 @@ logging.addLevelName(CUSTOM_LOGGING.ERROR, "-")
 logging.addLevelName(CUSTOM_LOGGING.WARNING, "!")
 
 LOGGER = logging.getLogger("pocsuite")
+try:
+    # for python>=3.7
+    sys.stdout.reconfigure(encoding='utf-8')
+except AttributeError:
+    # http://www.macfreek.nl/memory/Encoding_of_Python_stdout
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
 LOGGER_HANDLER = logging.StreamHandler(sys.stdout)
 PRIMARY_FMT = (
     "%(cyan)s[%(asctime)s] %(log_color)s[%(levelname)s]%(reset)s %(message)s"
@@ -42,12 +49,6 @@ FORMATTER = colorlog.LevelFormatter(
     secondary_log_colors={},
     style='%'
 )
-
-disableColor = "disable-col" in ' '.join(sys.argv)
-if disableColor:
-    FORMATTER = logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] %(message)s", "%H:%M:%S")
-
 
 LOGGER_HANDLER.setFormatter(FORMATTER)
 LOGGER.addHandler(LOGGER_HANDLER)

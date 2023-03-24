@@ -4,20 +4,20 @@ import logging
 import os
 import re
 import socket
-import socks
 import importlib
-import prettytable
-from termcolor import colored
 from queue import Queue
 from urllib.parse import urlsplit
 
+import socks
+import prettytable
+from termcolor import colored
 from pocsuite3.lib.core.clear import remove_extra_log_message
 from pocsuite3.lib.core.common import boldify_message, check_file, get_file_items, parse_target, \
     get_public_type_members, data_to_stdout
 from pocsuite3.lib.core.common import check_path, extract_cookies
-from pocsuite3.lib.core.common import get_local_ip, desensitization, get_host_ip
+from pocsuite3.lib.core.common import get_local_ip, mosaic, get_host_ip
 from pocsuite3.lib.core.common import single_time_warn_message
-from pocsuite3.lib.core.common import OrderedSet
+from pocsuite3.lib.core.common import OrderedSet, get_file_text
 from pocsuite3.lib.core.convert import stdout_encode
 from pocsuite3.lib.core.data import conf, cmd_line_options
 from pocsuite3.lib.core.data import kb
@@ -32,6 +32,7 @@ from pocsuite3.lib.core.register import load_file_to_module
 from pocsuite3.lib.core.settings import DEFAULT_LISTENER_PORT, CMD_PARSE_WHITELIST
 from pocsuite3.lib.core.statistics_comparison import StatisticsComparison
 from pocsuite3.lib.core.update import update
+from pocsuite3.lib.core.template import create_poc_plugin_template
 from pocsuite3.lib.parse.cmd import DIY_OPTIONS
 from pocsuite3.lib.parse.configfile import config_file_parser
 from pocsuite3.lib.parse.rules import regex_rule
@@ -123,7 +124,7 @@ def _set_network_timeout():
 
             conf.timeout = 3.0
     else:
-        conf.timeout = 30.0
+        conf.timeout = 10
 
     socket.setdefaulttimeout(conf.timeout)
 
@@ -196,24 +197,22 @@ def _set_network_proxy():
 def _set_multiple_targets():
     # set multi targets to kb
     if conf.url:
-        targets = set()
         for url in conf.url:
-            parsed = parse_target(url)
-            if parsed:
-                targets.add(parsed)
-        if not targets:
-            err_msg = "incorrect target url or ip format!"
-            logger.error(err_msg)
-        for target in targets:
-            kb.targets.add(target)
+            for target in parse_target(url, conf.ports, conf.skip_target_port):
+                kb.targets.add(target)
 
     if conf.url_file:
         for line in get_file_items(conf.url_file, lowercase=False, unique=True):
-            kb.targets.add(line)
+            for target in parse_target(line, conf.ports, conf.skip_target_port):
+                kb.targets.add(target)
 
     if conf.dork:
         # enable plugin 'target_from_zoomeye' by default
-        if 'target_from_shodan' not in conf.plugins and 'target_from_fofa' not in conf.plugins and 'target_from_quake' not in conf.plugins:
+        if ('target_from_shodan' not in conf.plugins and
+                'target_from_censys' not in conf.plugins and
+                'target_from_fofa' not in conf.plugins and
+                'target_from_quake' not in conf.plugins and
+                'target_from_hunter' not in conf.plugins):
             conf.plugins.append('target_from_zoomeye')
 
     if conf.dork_zoomeye:
@@ -230,6 +229,9 @@ def _set_multiple_targets():
 
     if conf.dork_quake:
         conf.plugins.append('target_from_quake')
+
+    if conf.dork_hunter:
+        conf.plugins.append('target_from_hunter')
 
 
 def _set_task_queue():
@@ -265,7 +267,7 @@ def _check_zoomeye():
 
 def _set_threads():
     if not isinstance(conf.threads, int) or conf.threads <= 0:
-        conf.threads = 1
+        conf.threads = 150
 
 
 def _set_connect_back():
@@ -275,9 +277,7 @@ def _set_connect_back():
         data_to_stdout("[i] pocsusite is running in shell mode, you need to set connect back host:\n")
         message = '----- Local IP Address -----\n'
         for i, ip in enumerate(kb.data.local_ips):
-            v = ip
-            if conf.ppt:
-                v = desensitization(v)
+            v = mosaic(ip)
             if ip == wan_ipv4:
                 v = colored(f'{v}    *wan*', 'green')
             message += "{0}    {1}\n".format(i, v)
@@ -291,8 +291,7 @@ def _set_connect_back():
                 if choose.isdigit():
                     choose = int(choose)
                     conf.connect_back_host = kb.data.local_ips[choose]
-                    data_to_stdout("you choose {0}\n".format(
-                        desensitization(conf.connect_back_host) if conf.ppt else conf.connect_back_host))
+                    data_to_stdout("you choose {0}\n".format(mosaic(conf.connect_back_host)))
                     break
             except Exception:
                 data_to_stdout("wrong number, choose again\n")
@@ -320,44 +319,58 @@ def _set_pocs_modules():
     # load poc scripts .pyc file support
     if conf.ssvid:
         conf.plugins.append('poc_from_seebug')
+
+    if not (conf.poc or conf.vul_keyword) and conf.poc_keyword:
+        conf.poc = [paths.POCSUITE_POCS_PATH]
+
     if conf.poc:
-        # step1. load system packed poc from pocsuite3/pocs folder
         exists_poc_with_ext = list(
             filter(lambda x: x not in ['__init__.py', '__init__.pyc'], os.listdir(paths.POCSUITE_POCS_PATH)))
         exists_pocs = dict([os.path.splitext(x) for x in exists_poc_with_ext])
         for poc in conf.poc:
-            load_poc_sucess = False
-            if any([poc in exists_poc_with_ext, poc in exists_pocs]):
-                poc_name, poc_ext = os.path.splitext(poc)
-                if poc_ext in ['.py', '.pyc']:
-                    file_path = os.path.join(paths.POCSUITE_POCS_PATH, poc)
-                else:
-                    file_path = os.path.join(paths.POCSUITE_POCS_PATH, poc + exists_pocs.get(poc))
-                if file_path:
-                    info_msg = "loading PoC script '{0}'".format(file_path)
-                    logger.info(info_msg)
-                    load_poc_sucess = load_file_to_module(file_path)
-
-            # step2. load poc from given file path
+            # load poc from pocsuite3/pocs folder or other local path
             try:
-                if not load_poc_sucess:
-                    if not poc.startswith('ssvid-') and check_file(poc):
-                        info_msg = "loading PoC script '{0}'".format(poc)
-                        logger.info(info_msg)
-                        load_poc_sucess = load_file_to_module(poc)
+                _pocs = []
+                load_poc_sucess = False
+
+                if os.path.isfile(poc):
+                    _pocs.append(poc)
+
+                elif any([poc in exists_poc_with_ext, poc in exists_pocs]):
+                    poc_name, poc_ext = os.path.splitext(poc)
+                    if poc_ext in ['.py', '.pyc', '.yaml']:
+                        file_path = os.path.join(paths.POCSUITE_POCS_PATH, poc)
+                    else:
+                        file_path = os.path.join(paths.POCSUITE_POCS_PATH, poc + exists_pocs.get(poc))
+                    _pocs.append(file_path)
+
+                elif check_path(poc):
+                    for root, _, files in os.walk(poc):
+                        files = filter(lambda x: not x.startswith("__") and x.endswith(".py") or
+                                       x.endswith('.yaml'), files)
+                        _pocs.extend(map(lambda x: os.path.join(root, x), files))
+
+                for p in _pocs:
+                    file_content = get_file_text(p)
+                    if not re.search(r'register_poc|matchers:\s+-', file_content):
+                        continue
+                    if conf.poc_keyword:
+                        if not re.search(conf.poc_keyword, file_content, re.I | re.M):
+                            continue
+                    info_msg = "loading PoC script '{0}'".format(p)
+                    logger.info(info_msg)
+                    load_poc_sucess = load_file_to_module(p) or load_poc_sucess
             except PocsuiteSystemException:
                 logger.error('PoC file "{0}" not found'.format(repr(poc)))
                 continue
 
-            # step3. load poc from seebug website using plugin 'poc_from_seebug'
-            if not load_poc_sucess:
-                if poc.startswith('ssvid-'):
-                    info_msg = "loading Poc script 'https://www.seebug.org/vuldb/{0}'".format(poc)
-                    logger.info(info_msg)
-                    if "poc_from_seebug" not in conf.plugins:
-                        conf.plugins.append('poc_from_seebug')
+            # load poc from seebug website using plugin 'poc_from_seebug'
+            if not load_poc_sucess and poc.startswith('ssvid-'):
+                info_msg = "loading Poc script 'https://www.seebug.org/vuldb/{0}'".format(poc)
+                logger.info(info_msg)
+                if "poc_from_seebug" not in conf.plugins:
+                    conf.plugins.append('poc_from_seebug')
 
-    load_keyword_poc_sucess = False
     if conf.vul_keyword:
         # step4. load poc with vul_keyword search seebug website
         info_msg = "loading PoC script from seebug website using search keyword '{0}' ".format(conf.vul_keyword)
@@ -417,6 +430,19 @@ def _cleanup_options():
             conf.url = [conf.url]
         conf.url = [x.strip() for x in conf.url]
 
+    if conf.ports:
+        if isinstance(conf.ports, str):
+            ports = OrderedSet()
+            for probe in conf.ports.split(','):
+                # [proto:]port
+                probe = probe.replace(' ', '')
+                if len(probe.split(':')) > 2:
+                    continue
+                port = probe.split(':')[-1]
+                if port.isdigit() and int(port) >= 0 and int(port) <= 65535:
+                    ports.add(probe)
+            conf.ports = list(ports)
+
     if conf.poc:
         if isinstance(conf.poc, str):
             conf.poc = [conf.poc]
@@ -430,6 +456,9 @@ def _cleanup_options():
         conf.plugins = conf.plugins.split(',')
         conf.plugins = [i.strip() for i in conf.plugins]
         conf.plugins = list(set(conf.plugins))
+
+    if conf.output_path and 'file_record' not in conf.plugins:
+        conf.plugins.append('file_record')
 
     if conf.connect_back_port:
         conf.connect_back_port = int(conf.connect_back_port)
@@ -489,8 +518,11 @@ def _set_conf_attributes():
 
     conf.url = None
     conf.url_file = None
+    conf.ports = []
+    conf.skip_target_port = False
     conf.mode = 'verify'
     conf.poc = None
+    conf.poc_keyword = None
     conf.cookie = None
     conf.host = None
     conf.referer = None
@@ -499,16 +531,20 @@ def _set_conf_attributes():
     conf.proxy = None
     conf.proxy_cred = None
     conf.proxies = {}
-    conf.timeout = 30
+    conf.timeout = 10
     conf.retry = 0
     conf.delay = 0
     conf.http_headers = {}
-    conf.login_user = None
-    conf.login_pass = None
+    conf.ceye_token = None
+    conf.oob_server = None
+    conf.oob_token = None
+    conf.seebug_token = None
+    conf.zoomeye_token = None
     conf.shodan_token = None
     conf.fofa_user = None
     conf.fofa_token = None
     conf.quake_token = None
+    conf.hunter_token = None
     conf.censys_uid = None
     conf.censys_secret = None
     conf.dork = None
@@ -516,6 +552,7 @@ def _set_conf_attributes():
     conf.dork_shodan = None
     conf.dork_fofa = None
     conf.dork_quake = None
+    conf.dork_hunter = None
     conf.dork_censys = None
     conf.dork_b64 = False
     conf.max_page = 1
@@ -524,11 +561,12 @@ def _set_conf_attributes():
     conf.vul_keyword = None
     conf.ssvid = None
     conf.plugins = []
-    conf.threads = 1
+    conf.threads = 150
     conf.batch = False
     conf.check_requires = False
     conf.quiet = False
     conf.update_all = False
+    conf.new = False
     conf.verbose = 1
 
     conf.ipv6 = False
@@ -547,6 +585,7 @@ def _set_conf_attributes():
     conf.rule = False
     conf.rule_req = False
     conf.rule_filename = None
+    conf.no_check = False
     conf.show_options = False
     conf.enable_tls_listener = False
 
@@ -673,10 +712,16 @@ def _init_target_from_poc_dork():
     for poc_module, poc_class in kb.registered_pocs.items():
         if not hasattr(poc_class, 'dork'):
             continue
+
+        # local mode, do not need any targets. e.g. LPE
+        if 'local' in poc_class.dork.keys():
+            kb.targets.add('localhost')
+            return
+
         # find a available target source
         target_source = ''
-        for i in ["zoomeye", "fofa", "shodan", "quake", "censys"]:
-            if i in poc_class.dork.keys():
+        for i in ["zoomeye", "fofa", "shodan", "quake", "hunter", "censys"]:
+            if i in poc_class.dork.keys() and poc_class.dork[i].strip() != '':
                 target_source = i
                 break
         # fetch target from target source, add it to kb.targets
@@ -721,10 +766,13 @@ def init():
     _basic_option_validation()
     _create_directory()
     _init_kb_comparison()
+    create_poc_plugin_template()
     update()
     _set_multiple_targets()
     _set_user_pocs_path()
-    _set_pocs_modules()  # The poc module module must be in front of the plug-in module, and some parameters in the poc option call the plug-in
+    # The poc module module must be in front of the plug-in module,
+    # and some parameters in the poc option call the plug-in
+    _set_pocs_modules()
     _set_plugins()
     _init_targets_plugins()
     _init_pocs_plugins()

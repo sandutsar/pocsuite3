@@ -8,7 +8,7 @@ from pocsuite3.lib.core.revision import get_revision_number
 
 VERSION = __version__
 REVISION = get_revision_number()
-SITE = "http://pocsuite.org"
+SITE = "https://pocsuite.org"
 VERSION_STRING = "pocsuite/%s%s" % (
     VERSION,
     "-%s" % REVISION
@@ -93,9 +93,7 @@ LOCAL_IP_ADDRESS_REGEX = (
 
 POC_REQUIRES_REGEX = r"install_requires\s*=\s*\[(?P<result>.*?)\]"
 
-POC_NAME_REGEX = r"""(?sm)POCBase\):.*?name\s*=\s*['"](?P<result>.*?)['"]"""
-
-MAX_NUMBER_OF_THREADS = 20
+MAX_NUMBER_OF_THREADS = 200
 
 DEFAULT_LISTENER_PORT = 6666
 
@@ -110,10 +108,16 @@ OS_ARCH = machine()
 
 # Cmd line parse whitelist
 CMD_PARSE_WHITELIST = [
+    "help",
     "version",
     "update",
+    "new",
     "url",
+    "url_file",
+    "ports",
+    "skip_target_port",
     "file",
+    "poc_keyword",
     "verify",
     "attack",
     "shell",
@@ -127,43 +131,54 @@ CMD_PARSE_WHITELIST = [
     "retry",
     "delay",
     "headers",
-    "login-user",
-    "login-pass",
-    "dork",
-    "dork-shodan",
-    "dork-censys",
-    "dork-zoomeye",
-    "dork-fofa",
-    "dork-quake",
-    "max-page",
-    "search-type",
+    "ceye-token",
+    "oob-server",
+    "oob-token",
+    "seebug-token",
+    "zoomeye-token",
     "shodan-token",
     "fofa-user",
     "fofa-token",
     "quake-token",
+    "hunter-token",
+    "censys-uid",
+    "censys-secret",
+    "dork",
+    "dork-zoomeye",
+    "dork-shodan",
+    "dork-fofa",
+    "dork-quake",
+    "dork-hunter",
+    "dork-censys",
+    "max-page",
+    "search-type",
     "vul-keyword",
     "ssv-id",
     "lhost",
     "lport",
+    "tls",
+    "comparison",
+    "dork-b64",
+    "output_path",
     "plugins",
     "pocs-path",
     "threads",
     "batch",
     "requires",
     "quiet",
+    "ppt",
+    "pcap",
+    "rule",
+    "rule-req",
+    "rule-filename",
+    "no-check",
+    "options",
+
+    # other
     "poc",
     "verbose",
     "mode",
     "api",
     "connect_back_host",
-    "connect_back_port",
-    "ppt",
-    "help",
-    "pcap",
-    "rule",
-    "rule-req",
-    "rule-filename",
-    "dork-b64",
-    "options",
-    "tls",
+    "connect_back_port"
 ]

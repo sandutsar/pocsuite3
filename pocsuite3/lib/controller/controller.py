@@ -1,7 +1,7 @@
 import copy
 import time
 from prettytable import PrettyTable
-from pocsuite3.lib.core.common import data_to_stdout, desensitization
+from pocsuite3.lib.core.common import data_to_stdout, mosaic
 from pocsuite3.lib.core.data import conf, cmd_line_options
 from pocsuite3.lib.core.data import kb
 from pocsuite3.lib.core.data import logger
@@ -10,15 +10,16 @@ from pocsuite3.lib.core.exception import PocsuiteValidationException, PocsuiteSy
 from pocsuite3.lib.core.poc import Output
 from pocsuite3.lib.core.settings import CMD_PARSE_WHITELIST
 from pocsuite3.lib.core.threads import run_threads
+from pocsuite3.lib.utils import urlparse
 from pocsuite3.modules.listener import handle_listener_connection
 from pocsuite3.modules.listener.reverse_tcp import handle_listener_connection_for_console
 
 
 def runtime_check():
     if not kb.registered_pocs:
-        error_msg = "no PoC loaded, please check your PoC file"
-        logger.error(error_msg)
-        raise PocsuiteSystemException(error_msg)
+        msg = "No poc specified, try 'pocsuite -h' or 'pocsuite --help' for more information"
+        logger.warn(msg)
+        raise PocsuiteSystemException(msg)
 
 
 def start():
@@ -26,6 +27,7 @@ def start():
     tasks_count = kb.task_queue.qsize()
     info_msg = "pocsusite got a total of {0} tasks".format(tasks_count)
     logger.info(info_msg)
+    conf.threads = min(conf.threads, tasks_count)
     logger.debug("pocsuite will open {} threads".format(conf.threads))
 
     try:
@@ -35,8 +37,7 @@ def start():
         task_done()
 
     if conf.mode == "shell" and not conf.api:
-        info_msg = "connect back ip: {0}    port: {1}".format(
-            desensitization(conf.connect_back_host) if conf.ppt else conf.connect_back_host, conf.connect_back_port)
+        info_msg = "connect back ip: {0}    port: {1}".format(mosaic(conf.connect_back_host), conf.connect_back_port)
         logger.info(info_msg)
         info_msg = "watting for shell connect to pocsuite"
         logger.info(info_msg)
@@ -97,7 +98,6 @@ def task_run():
         if conf.pcap:
             # start capture flow
             import os
-            import urllib
             import logging
 
             os.environ["MPLBACKEND"] = "Agg"
@@ -105,10 +105,12 @@ def task_run():
 
             from pocsuite3.lib.utils.pcap_sniffer import Sniffer
             from scapy.utils import wrpcap
-            sniffer = Sniffer(urllib.parse.urlparse(target).hostname)
+            sniffer = Sniffer(urlparse(target).hostname)
             if sniffer.use_pcap:
                 if not sniffer.is_admin:
-                    logger.warn("Please use administrator privileges, and the poc will continue to execute without fetching the packet")
+                    logger.warn(
+                        "Please use administrator privileges, and the poc will continue to execute "
+                        "without fetching the packet")
                     conf.pcap = False
                 else:
                     sniffer.start()
@@ -118,11 +120,7 @@ def task_run():
                 logger.warn("No libpcap is detected, and the poc will continue to execute without fetching the packet")
                 conf.pcap = False
 
-        # for hide some infomations
-        if conf.ppt:
-            info_msg = "running poc:'{0}' target '{1}'".format(poc_name, desensitization(target))
-        else:
-            info_msg = "running poc:'{0}' target '{1}'".format(poc_name, target)
+        info_msg = "running poc:'{0}' target '{1}'".format(poc_name, mosaic(target))
 
         logger.info(info_msg)
 
@@ -138,13 +136,14 @@ def task_run():
             for opt, v in poc_module.options.items():
                 # check conflict in whitelist
                 if opt in CMD_PARSE_WHITELIST:
-                    info_msg = "Poc:'{0}' You can't customize this variable '{1}' because it is already taken up by the pocsuite.".format(
-                        poc_name, opt)
+                    info_msg = (
+                        "Poc:'{0}' You can't customize this variable '{1}' because it is already taken up "
+                        "by the pocsuite.").format(poc_name, opt)
                     logger.error(info_msg)
                     raise SystemExit
 
                 if v.require and v.value == "":
-                    info_msg = "Poc:'{poc}' Option '{key}' must be set,please add parameters '--{key}'".format(
+                    info_msg = "Poc:'{poc}' Option '{key}' must be set, please add parameters '--{key}'".format(
                         poc=poc_name, key=opt)
                     logger.error(info_msg)
                     raise SystemExit
@@ -183,12 +182,9 @@ def task_run():
             kb.comparison.change_success(target, True)
 
         output = AttribDict(result.to_dict())
-        if conf.ppt:
-            # hide some information
-            target = desensitization(target)
 
         output.update({
-            'target': target,
+            'target': mosaic(target),
             'poc_name': poc_name,
             'created': time.strftime("%Y-%m-%d %X", time.localtime()),
             'status': result_status
@@ -197,13 +193,9 @@ def task_run():
         kb.results.append(output)
         if conf.pcap:
             sniffer.join(20)
-            import urllib
             if not sniffer.is_alive():
-                filename = (
-                    urllib.parse.urlparse(target).hostname +
-                    time.strftime('_%Y_%m_%d_%H%M%S.pcap')
-                )
-                logger.info(f"pcap data has been saved in: {filename}")
+                filename = urlparse(target).hostname + time.strftime('_%Y_%m_%d_%H%M%S.pcap')
+                logger.info(f"pcap data has been saved in: {mosaic(filename)}")
                 wrpcap(filename, sniffer.pcap.results)
             else:
                 logger.error("Thread terminates timeout. Failed to save pcap")
